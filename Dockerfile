@@ -26,7 +26,7 @@ RUN echo "**** install mandatory packages ****" && \
 FROM alpine:3.15.4 AS duplicacy-builder
 
 ENV PACKAGE="gilbertchen/duplicacy"
-ENV PACKAGEVERSION="2.7.2"
+ENV PACKAGEVERSION="2.7.3"
 ARG TARGETPLATFORM
 
 RUN echo "**** download ${PACKAGE} ****" && \
@@ -38,7 +38,8 @@ RUN echo "**** download ${PACKAGE} ****" && \
         "linux/arm/v6") echo "arm"    ;; \
         *)              echo ""       ;; esac) && \
     echo "Package ${PACKAGE} platform ${PACKAGEPLATFORM} version ${PACKAGEVERSION}" && \
-    wget -q "https://github.com/${PACKAGE}/releases/download/v${PACKAGEVERSION}/duplicacy_linux_${PACKAGEPLATFORM}_${PACKAGEVERSION}" -qO /tmp/duplicacy
+    # wget -q "https://github.com/${PACKAGE}/releases/download/v${PACKAGEVERSION}/duplicacy_linux_${PACKAGEPLATFORM}_${PACKAGEVERSION}" -qO /tmp/duplicacy
+    wget -q "https://acrosync.com/duplicacy-web/duplicacy_linux_x64_2.7.3" -qO /tmp/duplicacy
 
 # rootfs builder
 FROM alpine:3.15.4 AS rootfs-builder
