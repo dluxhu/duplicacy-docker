@@ -1,5 +1,4 @@
-#!/usr/bin/with-contenv bash
-# shellcheck shell=bash disable=SC1008
+#!/command/with-contenv bash
 
 backup_pid_file=/var/run/duplicacy_backup.pid
 prune_pid_file=/var/run/duplicacy_prune.pid
@@ -42,12 +41,12 @@ operation_in_progress()
     # Expect the name of the operation as the first parameter
     operation=${1}
 
-    if [ -f ${backup_pid_file} ]; then
+    if [ -f "${backup_pid_file}" ] && [ ! -z "$(cat ${backup_pid_file})" -a -e /proc/$(cat ${backup_pid_file}) ]; then
         echo A backup is in progress with PID="$(cat ${backup_pid_file})". Skipping "${operation}" | tee -a "$log_file"
         return 0
     fi
 
-    if [ -f ${prune_pid_file} ]; then
+    if [ -f "${prune_pid_file}" ] && [ ! -z "$(cat ${prune_pid_file})" -a -e /proc/$(cat ${prune_pid_file}) ]; then
         echo A prune is in progress with PID="$(cat ${prune_pid_file})". Skipping "${operation}" | tee -a "$log_file"
         return 0
     fi
@@ -87,43 +86,12 @@ else
     delay.sh "$log_file"
 
     start=$(date +%s.%N)
+    config_dir=/config
 
-    if [[ -n ${PRE_BACKUP_SCRIPT} ]]; then
-        if [[ -f ${PRE_BACKUP_SCRIPT} ]]; then
-            echo Run pre backup script | tee -a "$log_file"
-            export log_file my_dir # Variables I require in my pre backup script
-            sh -c "${PRE_BACKUP_SCRIPT}" | tee -a "$log_file"
-            exitcode=${PIPESTATUS[0]}
-        else
-            echo Pre backup script defined, but file not found | tee -a "$log_file"
-            # Command not found exit code (https://tldp.org/LDP/abs/html/exitcodes.html)
-            exitcode=127
-        fi
-    else
-        # No pre backup script so call it a success
-        exitcode=0
-    fi
+    cd "$config_dir" || exit 128
 
-    if [ $exitcode -eq 0 ]; then
-        config_dir=/config
-
-        cd "$config_dir" || exit 128
-
-        sh -c "nice -n $PRIORITY_LEVEL duplicacy $GLOBAL_OPTIONS backup $BACKUP_OPTIONS" | tee -a "$log_file"
-        exitcode=${PIPESTATUS[0]}
-
-        if [[ -n ${POST_BACKUP_SCRIPT} ]]; then
-            if [[ -f ${POST_BACKUP_SCRIPT} ]]; then
-                echo Run post backup script | tee -a "$log_file"
-                export log_file exitcode duration my_dir # Variables I require in my post backup script
-                sh -c "${POST_BACKUP_SCRIPT}" | tee -a "$log_file"
-            else
-                echo Post backup script defined, but file not found | tee -a "$log_file"
-            fi
-        fi
-    else
-        echo Pre backup script FAILED, code "$exitcode", | tee -a "$log_file"
-    fi
+    sh -c "duplicacy $GLOBAL_OPTIONS backup $BACKUP_OPTIONS" | tee -a "$log_file"
+    exitcode=${PIPESTATUS[0]}
 
     duration=$(echo "$(date +%s.%N) - $start" | bc)
 fi
@@ -136,6 +104,6 @@ else
     subject="duplicacy backup job id \"$hostname:$SNAPSHOT_ID\" FAILED"
 fi
 
-mailto.sh "$log_dir" "$subject"
+mailto.sh "$log_dir" "$subject" "$exitcode"
 
 exit "$exitcode"
